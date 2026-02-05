@@ -3,6 +3,8 @@ const ROWS = 20;
 const BASE_DROP_INTERVAL = 700;
 const DOUBLE_DOWN_MS = 250;
 const CONJUGATIONS_PER_LEVEL = 20;
+const DROP_INTERVAL = 700;
+const DOUBLE_DOWN_MS = 250;
 
 const PRONOUNS = ["yo", "tú", "él", "ella", "nosotros", "ustedes", "ellos"];
 const NOUNS = ["la casa", "el libro", "un café", "la música", "el parque", "un amigo", "la ciudad"];
@@ -41,6 +43,7 @@ const phrasesEl = document.getElementById("phrases");
 const restartBtn = document.getElementById("restart");
 const levelEl = document.getElementById("level");
 const difficultyEl = document.getElementById("difficulty");
+const difficultySelect = document.getElementById("difficulty");
 
 let grid = [];
 let current = null;
@@ -69,6 +72,8 @@ const SHAPES = {
     { x: 0, y: 0 },
     { x: 0, y: 1 },
     { x: 1, y: 1 },
+    { x: 0, y: 2 },
+    { x: 1, y: 2 },
   ],
 };
 
@@ -134,6 +139,9 @@ function createBlock() {
     const verb = randomKey(VERBS);
     text = verb;
     payload = { verb, conjugated: false };
+    const level = difficultySelect.value;
+    text = randomFrom(VERBS[verb][level]);
+    payload = { verb, level };
   }
   if (type === "lshape") {
     const noun = randomFrom(NOUNS);
@@ -239,6 +247,7 @@ function drawCurrent() {
 function lockCurrent() {
   blocks.set(current.id, { ...current });
   checkPhrases();
+  settleBlocks();
   spawnBlock();
 }
 
@@ -270,6 +279,7 @@ function startGame() {
   dropInterval = BASE_DROP_INTERVAL;
   updateLevelUI();
   dropTimer = setInterval(tick, dropInterval);
+  dropTimer = setInterval(tick, DROP_INTERVAL);
 }
 
 function stopGame() {
@@ -286,6 +296,8 @@ function updateVerb(block) {
   block.payload.conjugated = true;
   conjugationCount += 1;
   maybeLevelUp();
+  const level = difficultySelect.value;
+  block.text = randomFrom(VERBS[verb][level]);
 }
 
 function updateLShape(block) {
@@ -423,6 +435,7 @@ function checkPhrases() {
     scoreEl.textContent = score;
     toRemove.forEach((id) => removeBlockById(id));
     settleBlocks();
+    render();
   }
 }
 
@@ -494,6 +507,13 @@ function maybeLevelUp() {
 }
 
 restartBtn.addEventListener("click", startGame);
+restartBtn.addEventListener("click", startGame);
+difficultySelect.addEventListener("change", () => {
+  if (current?.type === "rect") {
+    updateVerb(current);
+    drawCurrent();
+  }
+});
 
 document.addEventListener("keydown", handleKey);
 
