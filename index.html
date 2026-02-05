@@ -4,7 +4,147 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tetris Lingüístico</title>
-    <link rel="stylesheet" href="styles.css" />
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Inter", system-ui, -apple-system, sans-serif;
+        background: #f4f6fb;
+        color: #1d2533;
+      }
+
+      body {
+        margin: 0;
+        background: linear-gradient(135deg, #0f172a, #1e293b);
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(320px, 1fr) 280px;
+        gap: 24px;
+        padding: 24px;
+        align-items: start;
+      }
+
+      .game {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 20px 24px 24px;
+        box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
+      }
+
+      .game header h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+      }
+
+      .game header p {
+        margin: 0 0 16px;
+        color: #4a5568;
+      }
+
+      .status {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: center;
+        margin-bottom: 16px;
+        color: #1f2937;
+      }
+
+      .status select,
+      .status button {
+        padding: 6px 10px;
+        border-radius: 8px;
+        border: 1px solid #cbd5f0;
+        font-size: 14px;
+        background: #f8fafc;
+      }
+
+      .board {
+        display: grid;
+        grid-template-columns: repeat(10, 1fr);
+        grid-template-rows: repeat(20, 1fr);
+        gap: 0;
+        background: #0b1220;
+        padding: 8px;
+        border-radius: 18px;
+        width: min(70vw, 360px);
+        aspect-ratio: 1 / 2;
+        border: 1px solid #1f2937;
+      }
+
+      .cell {
+        background: #111827;
+        border-radius: 0;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .cell.filled {
+        box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.35);
+      }
+
+      .cell.square {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      }
+
+      .cell.rect {
+        background: linear-gradient(135deg, #fb923c, #ea580c);
+      }
+
+      .cell.lshape {
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+      }
+
+      .cell span {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: clamp(10px, 1.6vw, 14px);
+        text-align: center;
+        padding: 4px;
+        color: #f8fafc;
+        line-height: 1.15;
+        font-weight: 600;
+        text-shadow: 0 1px 2px rgba(15, 23, 42, 0.6);
+        word-break: break-word;
+      }
+
+      .controls {
+        margin-top: 16px;
+        font-size: 14px;
+        color: #4a5568;
+      }
+
+      .phrases {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
+      }
+
+      .phrases ol {
+        padding-left: 20px;
+        margin: 12px 0 0;
+      }
+
+      .phrases li {
+        margin-bottom: 10px;
+        color: #2d3748;
+      }
+
+      @media (max-width: 900px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        .board {
+          width: 100%;
+        }
+      }
+    </style>
   </head>
   <body>
     <main class="layout">
@@ -23,7 +163,7 @@
           </div>
           <label>
             Dificultad
-            <select id="difficulty">
+            <select id="difficulty-select">
               <option value="basico">Básico</option>
               <option value="medio">Medio</option>
               <option value="avanzado">Avanzado</option>
@@ -46,6 +186,530 @@
         <ol id="phrases"></ol>
       </aside>
     </main>
-    <script src="script.js"></script>
+    <script>
+      const COLS = 10;
+      const ROWS = 20;
+      const BASE_DROP_INTERVAL = 700;
+      const DOUBLE_DOWN_MS = 250;
+      const CONJUGATIONS_PER_LEVEL = 20;
+
+      const PRONOUNS = ["yo", "tú", "él", "ella", "nosotros", "ustedes", "ellos"];
+      const NOUNS = [
+        "la casa",
+        "el libro",
+        "un café",
+        "la música",
+        "el parque",
+        "un amigo",
+        "la ciudad",
+      ];
+      const MODIFIERS = {
+        preposiciones: ["en", "con", "sobre", "para", "desde", "hacia"],
+        articulosDef: ["el", "la", "los", "las"],
+        articulosInd: ["un", "una", "unos", "unas"],
+      };
+
+      const VERBS = {
+        hablar: {
+          basico: ["hablo", "hablas", "habla", "hablamos"],
+          medio: ["hablé", "hablaba", "hablaré", "hablaría"],
+          avanzado: ["haya hablado", "hubiera hablado", "hablase", "habría hablado"],
+        },
+        comer: {
+          basico: ["como", "comes", "come", "comemos"],
+          medio: ["comí", "comía", "comeré", "comería"],
+          avanzado: ["haya comido", "hubiera comido", "comiese", "habría comido"],
+        },
+        vivir: {
+          basico: ["vivo", "vives", "vive", "vivimos"],
+          medio: ["viví", "vivía", "viviré", "viviría"],
+          avanzado: ["haya vivido", "hubiera vivido", "viviese", "habría vivido"],
+        },
+        estudiar: {
+          basico: ["estudio", "estudias", "estudia", "estudiamos"],
+          medio: ["estudié", "estudiaba", "estudiaré", "estudiaría"],
+          avanzado: ["haya estudiado", "hubiera estudiado", "estudiase", "habría estudiado"],
+        },
+      };
+
+      const board = document.getElementById("board");
+      const scoreEl = document.getElementById("score");
+      const phrasesEl = document.getElementById("phrases");
+      const restartBtn = document.getElementById("restart");
+      const levelEl = document.getElementById("level");
+      const difficultyEl = document.getElementById("difficulty");
+      const difficultySelect = document.getElementById("difficulty-select");
+
+      let grid = [];
+      let current = null;
+      let dropTimer = null;
+      let score = 0;
+      let blockIdCounter = 1;
+      let blocks = new Map();
+      let lastDownTime = 0;
+      let conjugationCount = 0;
+      let level = 1;
+      let dropInterval = BASE_DROP_INTERVAL;
+
+      const SHAPES = {
+        square: [
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+          { x: 0, y: 1 },
+          { x: 1, y: 1 },
+        ],
+        rect: [
+          { x: 0, y: 0 },
+          { x: 0, y: 1 },
+          { x: 0, y: 2 },
+        ],
+        lshape: [
+          { x: 0, y: 0 },
+          { x: 0, y: 1 },
+          { x: 0, y: 2 },
+          { x: 1, y: 2 },
+        ],
+      };
+
+      function initGrid() {
+        grid = Array.from({ length: ROWS }, () =>
+          Array.from({ length: COLS }, () => null)
+        );
+      }
+
+      function createCells() {
+        board.innerHTML = "";
+        for (let i = 0; i < ROWS * COLS; i += 1) {
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          board.appendChild(cell);
+        }
+      }
+
+      function cellIndex(x, y) {
+        return y * COLS + x;
+      }
+
+      function render() {
+        const cells = board.children;
+        for (let y = 0; y < ROWS; y += 1) {
+          for (let x = 0; x < COLS; x += 1) {
+            const cell = cells[cellIndex(x, y)];
+            const data = grid[y][x];
+            cell.className = "cell";
+            cell.innerHTML = "";
+            if (data) {
+              cell.classList.add("filled", data.type);
+              if (data.text && data.showText) {
+                const span = document.createElement("span");
+                span.textContent = data.text;
+                cell.appendChild(span);
+              }
+            }
+          }
+        }
+      }
+
+      function randomFrom(list) {
+        return list[Math.floor(Math.random() * list.length)];
+      }
+
+      function randomKey(obj) {
+        const keys = Object.keys(obj);
+        return keys[Math.floor(Math.random() * keys.length)];
+      }
+
+      function createBlock() {
+        const types = ["square", "rect", "lshape"];
+        const type = randomFrom(types);
+        const id = blockIdCounter++;
+        let text = "";
+        let payload = {};
+
+        if (type === "square") {
+          text = randomFrom(PRONOUNS);
+        }
+        if (type === "rect") {
+          const verb = randomKey(VERBS);
+          const stage = difficultySelect?.value ?? "basico";
+          text = randomFrom(VERBS[verb][stage]);
+          payload = { verb, conjugated: false };
+        }
+        if (type === "lshape") {
+          const noun = randomFrom(NOUNS);
+          const modifier = randomModifier();
+          text = `${modifier} ${noun}`;
+          payload = { noun };
+        }
+
+        return {
+          id,
+          type,
+          rotation: 0,
+          x: 4,
+          y: 0,
+          text,
+          payload,
+        };
+      }
+
+      function randomModifier() {
+        const groups = Object.values(MODIFIERS);
+        return randomFrom(randomFrom(groups));
+      }
+
+      function rotatedShape(type, rotation) {
+        let shape = SHAPES[type];
+        let coords = shape.map((c) => ({ ...c }));
+        for (let i = 0; i < rotation; i += 1) {
+          coords = coords.map(({ x, y }) => ({ x: -y, y: x }));
+          const minX = Math.min(...coords.map((c) => c.x));
+          const minY = Math.min(...coords.map((c) => c.y));
+          coords = coords.map((c) => ({ x: c.x - minX, y: c.y - minY }));
+        }
+        return coords;
+      }
+
+      function canMove(block, dx, dy, rotation = block.rotation) {
+        const shape = rotatedShape(block.type, rotation);
+        return shape.every(({ x, y }) => {
+          const newX = block.x + x + dx;
+          const newY = block.y + y + dy;
+          if (newX < 0 || newX >= COLS || newY >= ROWS) {
+            return false;
+          }
+          if (newY < 0) {
+            return true;
+          }
+          const cell = grid[newY][newX];
+          return !cell || cell.id === block.id;
+        });
+      }
+
+      function placeBlock(block) {
+        const shape = rotatedShape(block.type, block.rotation);
+        shape.forEach(({ x, y }, index) => {
+          const gx = block.x + x;
+          const gy = block.y + y;
+          if (gy >= 0 && gy < ROWS) {
+            grid[gy][gx] = {
+              id: block.id,
+              type: block.type,
+              text: block.text,
+              showText: index === 0,
+            };
+          }
+        });
+        blocks.set(block.id, {
+          id: block.id,
+          type: block.type,
+          rotation: block.rotation,
+          x: block.x,
+          y: block.y,
+          text: block.text,
+          payload: block.payload,
+        });
+      }
+
+      function clearBlock(block) {
+        for (let y = 0; y < ROWS; y += 1) {
+          for (let x = 0; x < COLS; x += 1) {
+            if (grid[y][x]?.id === block.id) {
+              grid[y][x] = null;
+            }
+          }
+        }
+      }
+
+      function spawnBlock() {
+        current = createBlock();
+        if (!canMove(current, 0, 0)) {
+          stopGame();
+        } else {
+          drawCurrent();
+        }
+      }
+
+      function drawCurrent() {
+        clearBlock(current);
+        placeBlock(current);
+        render();
+      }
+
+      function lockCurrent() {
+        blocks.set(current.id, { ...current });
+        checkPhrases();
+        settleBlocks();
+        spawnBlock();
+      }
+
+      function tick() {
+        if (!current) {
+          return;
+        }
+        if (canMove(current, 0, 1)) {
+          current.y += 1;
+          drawCurrent();
+        } else {
+          lockCurrent();
+        }
+      }
+
+      function startGame() {
+        initGrid();
+        blocks = new Map();
+        score = 0;
+        conjugationCount = 0;
+        level = 1;
+        scoreEl.textContent = score;
+        phrasesEl.innerHTML = "";
+        createCells();
+        if (dropTimer) {
+          clearInterval(dropTimer);
+        }
+        spawnBlock();
+        dropInterval = BASE_DROP_INTERVAL;
+        updateLevelUI();
+        dropTimer = setInterval(tick, dropInterval);
+      }
+
+      function stopGame() {
+        clearInterval(dropTimer);
+        current = null;
+        alert("Juego terminado. ¡Intenta de nuevo!");
+      }
+
+      function updateVerb(block) {
+        if (block.type !== "rect") return;
+        const verb = block.payload.verb;
+        const stage = difficultySelect?.value ?? difficultyStage(level);
+        block.text = randomFrom(VERBS[verb][stage]);
+        if (!block.payload.conjugated) {
+          block.payload.conjugated = true;
+          conjugationCount += 1;
+          maybeLevelUp();
+        }
+      }
+
+      function updateLShape(block) {
+        if (block.type !== "lshape") return;
+        const modifier = randomModifier();
+        block.text = `${modifier} ${block.payload.noun}`;
+      }
+
+      function handleRotate() {
+        if (!current) return;
+        if (current.type === "square") {
+          return;
+        }
+        const nextRotation = (current.rotation + 1) % 4;
+        if (canMove(current, 0, 0, nextRotation)) {
+          current.rotation = nextRotation;
+        }
+        if (current.type === "rect") {
+          updateVerb(current);
+        }
+        if (current.type === "lshape") {
+          updateLShape(current);
+        }
+        drawCurrent();
+      }
+
+      function handleDown() {
+        const now = Date.now();
+        if (now - lastDownTime < DOUBLE_DOWN_MS) {
+          while (canMove(current, 0, 1)) {
+            current.y += 1;
+          }
+          drawCurrent();
+          lockCurrent();
+          lastDownTime = 0;
+          return;
+        }
+        lastDownTime = now;
+        if (canMove(current, 0, 1)) {
+          current.y += 1;
+          drawCurrent();
+        }
+      }
+
+      function handleKey(event) {
+        if (!current) return;
+        switch (event.key) {
+          case "ArrowLeft":
+            if (canMove(current, -1, 0)) {
+              current.x -= 1;
+              drawCurrent();
+            }
+            break;
+          case "ArrowRight":
+            if (canMove(current, 1, 0)) {
+              current.x += 1;
+              drawCurrent();
+            }
+            break;
+          case "ArrowDown":
+            handleDown();
+            break;
+          case "ArrowUp":
+            handleRotate();
+            break;
+          default:
+            break;
+        }
+      }
+
+      function adjacencyMap() {
+        const map = new Map();
+        for (let y = 0; y < ROWS; y += 1) {
+          for (let x = 0; x < COLS; x += 1) {
+            const cell = grid[y][x];
+            if (!cell) continue;
+            const id = cell.id;
+            if (!map.has(id)) map.set(id, new Set());
+            const neighbors = [
+              { x: x + 1, y },
+              { x: x - 1, y },
+              { x, y: y + 1 },
+              { x, y: y - 1 },
+            ];
+            neighbors.forEach((pos) => {
+              if (pos.x < 0 || pos.x >= COLS || pos.y < 0 || pos.y >= ROWS) return;
+              const neighbor = grid[pos.y][pos.x];
+              if (neighbor && neighbor.id !== id) {
+                if (!map.has(id)) map.set(id, new Set());
+                map.get(id).add(neighbor.id);
+              }
+            });
+          }
+        }
+        return map;
+      }
+
+      function blockType(id) {
+        const block = blocks.get(id);
+        return block?.type;
+      }
+
+      function checkPhrases() {
+        const adj = adjacencyMap();
+        const phrases = [];
+        const toRemove = new Set();
+
+        for (const [id, neighbors] of adj.entries()) {
+          if (blockType(id) !== "square" || toRemove.has(id)) continue;
+          for (const verbId of neighbors) {
+            if (blockType(verbId) !== "rect" || toRemove.has(verbId)) continue;
+            const verbNeighbors = adj.get(verbId) || new Set();
+            for (const compId of verbNeighbors) {
+              if (blockType(compId) !== "lshape" || toRemove.has(compId)) continue;
+              const pronoun = blocks.get(id)?.text;
+              const verb = blocks.get(verbId)?.text;
+              const complement = blocks.get(compId)?.text;
+              if (pronoun && verb && complement) {
+                phrases.push(`${pronoun} ${verb} ${complement}`);
+                toRemove.add(id);
+                toRemove.add(verbId);
+                toRemove.add(compId);
+              }
+            }
+          }
+        }
+
+        if (phrases.length > 0) {
+          phrases.forEach((phrase) => {
+            const li = document.createElement("li");
+            li.textContent = phrase;
+            phrasesEl.appendChild(li);
+            score += 100;
+          });
+          scoreEl.textContent = score;
+          toRemove.forEach((id) => removeBlockById(id));
+          settleBlocks();
+          render();
+        }
+      }
+
+      function removeBlockById(id) {
+        for (let y = 0; y < ROWS; y += 1) {
+          for (let x = 0; x < COLS; x += 1) {
+            if (grid[y][x]?.id === id) {
+              grid[y][x] = null;
+            }
+          }
+        }
+        blocks.delete(id);
+      }
+
+      function settleBlocks() {
+        let moved = true;
+        while (moved) {
+          moved = false;
+          blocks.forEach((block) => {
+            if (block.id === current?.id) return;
+            if (canBlockFall(block)) {
+              clearBlock(block);
+              block.y += 1;
+              placeBlock(block);
+              moved = true;
+            }
+          });
+        }
+        render();
+      }
+
+      function canBlockFall(block) {
+        const shape = rotatedShape(block.type, block.rotation);
+        return shape.every(({ x, y }) => {
+          const gx = block.x + x;
+          const gy = block.y + y + 1;
+          if (gy >= ROWS) return false;
+          const cell = grid[gy][gx];
+          return !cell || cell.id === block.id;
+        });
+      }
+
+      function difficultyStage(currentLevel) {
+        if (currentLevel <= 2) return "basico";
+        if (currentLevel <= 4) return "medio";
+        return "avanzado";
+      }
+
+      function difficultyLabel(stage) {
+        if (stage === "basico") return "Básico";
+        if (stage === "medio") return "Medio";
+        return "Avanzado";
+      }
+
+      function updateLevelUI() {
+        levelEl.textContent = level;
+        const stage = difficultySelect?.value ?? difficultyStage(level);
+        difficultyEl.textContent = difficultyLabel(stage);
+      }
+
+      function maybeLevelUp() {
+        const nextLevel = Math.floor(conjugationCount / CONJUGATIONS_PER_LEVEL) + 1;
+        if (nextLevel !== level) {
+          level = nextLevel;
+          dropInterval = Math.max(200, BASE_DROP_INTERVAL - (level - 1) * 40);
+          clearInterval(dropTimer);
+          dropTimer = setInterval(tick, dropInterval);
+          updateLevelUI();
+        }
+      }
+
+      restartBtn.addEventListener("click", startGame);
+      difficultySelect.addEventListener("change", () => {
+        if (current?.type === "rect") {
+          updateVerb(current);
+          drawCurrent();
+        }
+        updateLevelUI();
+      });
+
+      document.addEventListener("keydown", handleKey);
+
+      startGame();
+    </script>
   </body>
 </html>
