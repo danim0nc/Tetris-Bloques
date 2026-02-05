@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tetris Lingüístico</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <section class="game">
+        <header>
+          <h1>Tetris Lingüístico</h1>
+          <p>Forma frases con pronombre + verbo + complemento usando bloques adyacentes.</p>
+        </header>
+        <div class="status">
+          <div><strong>Puntos:</strong> <span id="score">0</span></div>
+          <div>
+            <strong>Nivel:</strong> <span id="level">1</span>
+          </div>
+          <div>
+            <strong>Dificultad:</strong> <span id="difficulty">Básico</span>
+          </div>
+          <button id="restart">Reiniciar</button>
+        </div>
+        <div class="board" id="board" aria-label="Área de juego"></div>
+        <div class="controls">
+          <p><strong>Controles</strong></p>
+          <ul>
+            <li>⬅️/➡️ mover lateralmente</li>
+            <li>⬇️ acelerar descenso (doble ⬇️ = caída inmediata)</li>
+            <li>⬆️ rotar y cambiar palabras (según tipo)</li>
+          </ul>
+        </div>
+      </section>
+      <aside class="phrases">
+        <h2>Frases formadas</h2>
+        <ol id="phrases"></ol>
+      </aside>
+    </main>
+    <script src="script.js"></script>
+  </body>
+</html>
