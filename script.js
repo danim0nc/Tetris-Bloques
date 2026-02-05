@@ -3,8 +3,6 @@ const ROWS = 20;
 const BASE_DROP_INTERVAL = 700;
 const DOUBLE_DOWN_MS = 250;
 const CONJUGATIONS_PER_LEVEL = 20;
-const DROP_INTERVAL = 700;
-const DOUBLE_DOWN_MS = 250;
 
 const PRONOUNS = ["yo", "tú", "él", "ella", "nosotros", "ustedes", "ellos"];
 const NOUNS = ["la casa", "el libro", "un café", "la música", "el parque", "un amigo", "la ciudad"];
@@ -43,7 +41,7 @@ const phrasesEl = document.getElementById("phrases");
 const restartBtn = document.getElementById("restart");
 const levelEl = document.getElementById("level");
 const difficultyEl = document.getElementById("difficulty");
-const difficultySelect = document.getElementById("difficulty");
+const difficultySelect = document.getElementById("difficulty-select");
 
 let grid = [];
 let current = null;
@@ -137,11 +135,9 @@ function createBlock() {
   }
   if (type === "rect") {
     const verb = randomKey(VERBS);
-    text = verb;
+    const stage = difficultySelect?.value ?? "basico";
+    text = randomFrom(VERBS[verb][stage]);
     payload = { verb, conjugated: false };
-    const level = difficultySelect.value;
-    text = randomFrom(VERBS[verb][level]);
-    payload = { verb, level };
   }
   if (type === "lshape") {
     const noun = randomFrom(NOUNS);
@@ -279,7 +275,6 @@ function startGame() {
   dropInterval = BASE_DROP_INTERVAL;
   updateLevelUI();
   dropTimer = setInterval(tick, dropInterval);
-  dropTimer = setInterval(tick, DROP_INTERVAL);
 }
 
 function stopGame() {
@@ -291,13 +286,13 @@ function stopGame() {
 function updateVerb(block) {
   if (block.type !== "rect") return;
   const verb = block.payload.verb;
-  const stage = difficultyStage(level);
+  const stage = difficultySelect?.value ?? difficultyStage(level);
   block.text = randomFrom(VERBS[verb][stage]);
-  block.payload.conjugated = true;
-  conjugationCount += 1;
-  maybeLevelUp();
-  const level = difficultySelect.value;
-  block.text = randomFrom(VERBS[verb][level]);
+  if (!block.payload.conjugated) {
+    block.payload.conjugated = true;
+    conjugationCount += 1;
+    maybeLevelUp();
+  }
 }
 
 function updateLShape(block) {
@@ -492,7 +487,8 @@ function difficultyLabel(stage) {
 
 function updateLevelUI() {
   levelEl.textContent = level;
-  difficultyEl.textContent = difficultyLabel(difficultyStage(level));
+  const stage = difficultySelect?.value ?? difficultyStage(level);
+  difficultyEl.textContent = difficultyLabel(stage);
 }
 
 function maybeLevelUp() {
@@ -507,12 +503,12 @@ function maybeLevelUp() {
 }
 
 restartBtn.addEventListener("click", startGame);
-restartBtn.addEventListener("click", startGame);
 difficultySelect.addEventListener("change", () => {
   if (current?.type === "rect") {
     updateVerb(current);
     drawCurrent();
   }
+  updateLevelUI();
 });
 
 document.addEventListener("keydown", handleKey);
