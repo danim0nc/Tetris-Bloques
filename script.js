@@ -1,5 +1,8 @@
 const COLS = 10;
 const ROWS = 20;
+const BASE_DROP_INTERVAL = 700;
+const DOUBLE_DOWN_MS = 250;
+const CONJUGATIONS_PER_LEVEL = 20;
 const DROP_INTERVAL = 700;
 const DOUBLE_DOWN_MS = 250;
 
@@ -38,6 +41,8 @@ const board = document.getElementById("board");
 const scoreEl = document.getElementById("score");
 const phrasesEl = document.getElementById("phrases");
 const restartBtn = document.getElementById("restart");
+const levelEl = document.getElementById("level");
+const difficultyEl = document.getElementById("difficulty");
 const difficultySelect = document.getElementById("difficulty");
 
 let grid = [];
@@ -47,6 +52,9 @@ let score = 0;
 let blockIdCounter = 1;
 let blocks = new Map();
 let lastDownTime = 0;
+let conjugationCount = 0;
+let level = 1;
+let dropInterval = BASE_DROP_INTERVAL;
 
 const SHAPES = {
   square: [
@@ -63,6 +71,7 @@ const SHAPES = {
   lshape: [
     { x: 0, y: 0 },
     { x: 0, y: 1 },
+    { x: 1, y: 1 },
     { x: 0, y: 2 },
     { x: 1, y: 2 },
   ],
@@ -128,6 +137,8 @@ function createBlock() {
   }
   if (type === "rect") {
     const verb = randomKey(VERBS);
+    text = verb;
+    payload = { verb, conjugated: false };
     const level = difficultySelect.value;
     text = randomFrom(VERBS[verb][level]);
     payload = { verb, level };
@@ -256,6 +267,8 @@ function startGame() {
   initGrid();
   blocks = new Map();
   score = 0;
+  conjugationCount = 0;
+  level = 1;
   scoreEl.textContent = score;
   phrasesEl.innerHTML = "";
   createCells();
@@ -263,6 +276,9 @@ function startGame() {
     clearInterval(dropTimer);
   }
   spawnBlock();
+  dropInterval = BASE_DROP_INTERVAL;
+  updateLevelUI();
+  dropTimer = setInterval(tick, dropInterval);
   dropTimer = setInterval(tick, DROP_INTERVAL);
 }
 
@@ -275,6 +291,11 @@ function stopGame() {
 function updateVerb(block) {
   if (block.type !== "rect") return;
   const verb = block.payload.verb;
+  const stage = difficultyStage(level);
+  block.text = randomFrom(VERBS[verb][stage]);
+  block.payload.conjugated = true;
+  conjugationCount += 1;
+  maybeLevelUp();
   const level = difficultySelect.value;
   block.text = randomFrom(VERBS[verb][level]);
 }
@@ -413,6 +434,7 @@ function checkPhrases() {
     });
     scoreEl.textContent = score;
     toRemove.forEach((id) => removeBlockById(id));
+    settleBlocks();
     render();
   }
 }
@@ -456,6 +478,35 @@ function canBlockFall(block) {
   });
 }
 
+function difficultyStage(currentLevel) {
+  if (currentLevel <= 2) return "basico";
+  if (currentLevel <= 4) return "medio";
+  return "avanzado";
+}
+
+function difficultyLabel(stage) {
+  if (stage === "basico") return "Básico";
+  if (stage === "medio") return "Medio";
+  return "Avanzado";
+}
+
+function updateLevelUI() {
+  levelEl.textContent = level;
+  difficultyEl.textContent = difficultyLabel(difficultyStage(level));
+}
+
+function maybeLevelUp() {
+  const nextLevel = Math.floor(conjugationCount / CONJUGATIONS_PER_LEVEL) + 1;
+  if (nextLevel !== level) {
+    level = nextLevel;
+    dropInterval = Math.max(200, BASE_DROP_INTERVAL - (level - 1) * 40);
+    clearInterval(dropTimer);
+    dropTimer = setInterval(tick, dropInterval);
+    updateLevelUI();
+  }
+}
+
+restartBtn.addEventListener("click", startGame);
 restartBtn.addEventListener("click", startGame);
 difficultySelect.addEventListener("change", () => {
   if (current?.type === "rect") {
