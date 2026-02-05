@@ -69,7 +69,6 @@ const SHAPES = {
   lshape: [
     { x: 0, y: 0 },
     { x: 0, y: 1 },
-    { x: 1, y: 1 },
     { x: 0, y: 2 },
     { x: 1, y: 2 },
   ],
@@ -198,7 +197,7 @@ function placeBlock(block) {
     if (gy >= 0 && gy < ROWS) {
       grid[gy][gx] = {
         id: block.id,
-        type: block.type === "lshape" ? "el" : block.type,
+        type: block.type,
         text: block.text,
         showText: index === 0,
       };
